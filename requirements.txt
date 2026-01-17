@@ -1,8 +1,6 @@
 fastapi
 uvicorn
 gunicorn
-langchain
-chromadb
 tiktoken
 requests
 beautifulsoup4
