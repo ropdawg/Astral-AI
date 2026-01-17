@@ -1,0 +1,36 @@
+Using pip 25.3 from /Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pip (python 3.11)
+Collecting llama-cpp-python
+  Using cached llama_cpp_python-0.3.16.tar.gz (50.7 MB)
+  Installing build dependencies: started
+  Running command installing build dependencies for llama-cpp-python
+  Using pip 25.3 from /Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pip (python 3.11)
+  Collecting scikit-build-core>=0.9.2 (from scikit-build-core[pyproject]>=0.9.2)
+    Obtaining dependency information for scikit-build-core>=0.9.2 from https://files.pythonhosted.org/packages/43/49/ec16b3db6893db788ae35f98506ff5a9c25dca7eb18cc38ada8a4c1dc944/scikit_build_core-0.11.6-py3-none-any.whl.metadata
+    Using cached scikit_build_core-0.11.6-py3-none-any.whl.metadata (18 kB)
+  Collecting packaging>=23.2 (from scikit-build-core>=0.9.2->scikit-build-core[pyproject]>=0.9.2)
+    Obtaining dependency information for packaging>=23.2 from https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl.metadata
+    Using cached packaging-25.0-py3-none-any.whl.metadata (3.3 kB)
+  Collecting pathspec>=0.10.1 (from scikit-build-core>=0.9.2->scikit-build-core[pyproject]>=0.9.2)
+    Obtaining dependency information for pathspec>=0.10.1 from https://files.pythonhosted.org/packages/cc/20/ff623b09d963f88bfde16306a54e12ee5ea43e9b597108672ff3a408aad6/pathspec-0.12.1-py3-none-any.whl.metadata
+    Using cached pathspec-0.12.1-py3-none-any.whl.metadata (21 kB)
+  Using cached scikit_build_core-0.11.6-py3-none-any.whl (185 kB)
+  Using cached packaging-25.0-py3-none-any.whl (66 kB)
+  Using cached pathspec-0.12.1-py3-none-any.whl (31 kB)
+  Installing collected packages: pathspec, packaging, scikit-build-core
+
+  Successfully installed packaging-25.0 pathspec-0.12.1 scikit-build-core-0.11.6
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Running command Getting requirements to build wheel
+  Getting requirements to build wheel: finished with status 'done'
+  Installing backend dependencies: started
+  Running command installing backend dependencies for llama-cpp-python
+  Using pip 25.3 from /Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/pip (python 3.11)
+  Collecting ninja>=1.5
+    Obtaining dependency information for ninja>=1.5 from https://files.pythonhosted.org/packages/3c/74/d02409ed2aa865e051b7edda22ad416a39d81a84980f544f8de717cab133/ninja-1.13.0-py3-none-macosx_10_9_universal2.whl.metadata
+    Using cached ninja-1.13.0-py3-none-macosx_10_9_universal2.whl.metadata (5.1 kB)
+  Collecting cmake>=3.21
+    Obtaining dependency information for cmake>=3.21 from https://files.pythonhosted.org/packages/53/b3/51560fb74ff1f369299d2b15e7c0a1c227d534753dd779ccd45b305678a8/cmake-4.2.1-py3-none-macosx_10_10_universal2.whl.metadata
+    Using cached cmake-4.2.1-py3-none-macosx_10_10_universal2.whl.metadata (6.5 kB)
+  Using cached ninja-1.13.0-py3-none-macosx_10_9_universal2.whl (310 kB)
+  Downloading cmake-4.2.1-py3-none-macosx_10_10_universal2.whl (51.6 MB)

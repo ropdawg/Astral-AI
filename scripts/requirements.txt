@@ -1,0 +1,10 @@
+llama-cpp-python
+fastapi
+uvicorn
+langchain
+chromadb
+tiktoken
+requests
+beautifulsoup4
+lxml
+openai
