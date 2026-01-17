@@ -1,11 +1,11 @@
 fastapi
 uvicorn
+gunicorn
 langchain
 chromadb
 tiktoken
 requests
 beautifulsoup4
 lxml
-openai
 groq
 bs4
