@@ -1,9 +1,10 @@
+llama-cpp-python
 fastapi
 uvicorn
-gunicorn
+langchain
+chromadb
 tiktoken
 requests
 beautifulsoup4
 lxml
-groq
-bs4
+openai
