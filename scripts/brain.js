@@ -338,7 +338,7 @@ async function handleSend() {
   } catch (e) {}
 
   try {
-    const resp = await fetch(`${SERVER_URL}/chat`, {
+    const resp = await fetch(`https://BrianUkanwoko.pythonanywhere.com/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
