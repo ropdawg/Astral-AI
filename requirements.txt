@@ -1,4 +1,4 @@
-llama-cpp-python
+gunicorn
 fastapi
 uvicorn
 langchain
@@ -8,3 +8,4 @@ requests
 beautifulsoup4
 lxml
 openai
+groq
