@@ -25,19 +25,16 @@ app.add_middleware(
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
 MEMORY_PATH = os.path.join(PROJECT_ROOT, 'memory.json')
-API_KEY_PATH = os.path.join(PROJECT_ROOT, 'my-groq-api.txt')
 MAX_CONTEXT = 128000  # Llama3.1-70b has 131072 context
 BATCH_SIZE = 128
 TEMPERATURE = 0.7
 TOP_P = 0.9
 CPU_THREADS = min(4, multiprocessing.cpu_count())
 REPLY_MAX_TOKENS = 512
+API_KEY = "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"
 
 # Load Groq API key
-with open(API_KEY_PATH, 'r') as f:
-    api_key = f.read().strip()
-
-client = Groq(api_key=api_key)
+client = Groq(api_key=API_KEY)
 MODEL_NAME = "llama-3.3-70b-versatile"
 
 SYSTEM_PROMPT = """
