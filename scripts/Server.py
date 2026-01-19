@@ -330,13 +330,15 @@ def chat(msg: Message):
     # For Groq, we can use higher max_tokens since context is larger
     reply_max = max(20, requested)
 
-    response = client.chat.completions.create(
+    response = await asyncio.to_thread(
+        lambda: client.chat.completions.create(
         model=MODEL_NAME,
         messages=messages,
         max_tokens=reply_max,
         temperature=TEMPERATURE,
         top_p=TOP_P,
         stop=["User:", "Astral:"]
+    )
     )
 
     reply = response.choices[0].message.content.strip()
