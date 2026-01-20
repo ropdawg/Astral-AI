@@ -281,6 +281,127 @@ def wiki_search(query: str, max_results: int = 3):
         pass
     return out
 
+
+# Simple in-memory cache for recent web queries
+_web_cache = {}
+
+
+def duckduckgo_search(query: str, max_results: int = 5):
+    """Perform a lightweight DuckDuckGo HTML search (no API key required).
+    Returns list of {'url':..., 'text':...}
+    """
+    out = []
+    try:
+        url = 'https://html.duckduckgo.com/html/'
+        params = {'q': query}
+        r = requests.post(url, data=params, timeout=8, headers={'User-Agent': 'Mozilla/5.0'})
+        soup = BeautifulSoup(r.text, 'html.parser')
+        # Try to find the more structured results first
+        anchors = soup.find_all('a', attrs={'class': 'result__a'})
+        if not anchors:
+            anchors = soup.find_all('a')
+
+        for a in anchors:
+            href = a.get('href')
+            text = a.get_text().strip()
+            if not href or not href.startswith('http'):
+                continue
+            # try to find a nearby snippet
+            snippet = ''
+            parent = a.find_parent()
+            if parent:
+                s = parent.find('a', {'class': 'result__snippet'}) or parent.find('div', {'class': 'result__snippet'})
+                if s:
+                    snippet = s.get_text().strip()
+            out.append({'url': href, 'text': (snippet or text)[:1600]})
+            if len(out) >= max_results:
+                break
+    except Exception:
+        pass
+    return out
+
+
+def bing_search(query: str, max_results: int = 5):
+    """Use Bing Web Search API if `BING_API_KEY` env var is set. Returns same shape as other search fns."""
+    out = []
+    key = os.environ.get('BING_API_KEY')
+    if not key:
+        return out
+    try:
+        endpoint = 'https://api.bing.microsoft.com/v7.0/search'
+        headers = {'Ocp-Apim-Subscription-Key': key, 'User-Agent': 'Mozilla/5.0'}
+        params = {'q': query, 'count': max_results}
+        r = requests.get(endpoint, headers=headers, params=params, timeout=8)
+        data = r.json()
+        for item in data.get('webPages', {}).get('value', []):
+            out.append({'url': item.get('url'), 'text': (item.get('snippet') or '')[:1600]})
+    except Exception:
+        pass
+    return out
+
+
+def general_search(query: str, max_results: int = 5):
+    """Wrapper that tries Bing (if key present) then DuckDuckGo as fallback.
+    Uses a short in-memory cache to avoid repeated requests.
+    """
+    key = query.strip().lower()
+    cache_key = f"gs:{key}:{max_results}"
+    if cache_key in _web_cache:
+        return _web_cache[cache_key]
+
+    results = []
+    # Prefer Bing when available
+    if os.environ.get('BING_API_KEY'):
+        results = bing_search(query, max_results=max_results)
+
+    if not results:
+        results = duckduckgo_search(query, max_results=max_results)
+
+    # also include a few wiki results for authoritative references
+    try:
+        w = wiki_search(query, max_results=2)
+        # merge unique urls
+        seen = {r['url'] for r in results}
+        for r in w:
+            if r['url'] not in seen:
+                results.append(r)
+                seen.add(r['url'])
+                if len(results) >= max_results:
+                    break
+    except Exception:
+        pass
+
+    _web_cache[cache_key] = results
+    # keep cache small
+    if len(_web_cache) > 128:
+        # pop an arbitrary item
+        _web_cache.pop(next(iter(_web_cache)))
+    return results
+
+
+def should_use_web(text: str) -> bool:
+    """Heuristic to decide whether a query likely needs up-to-date web info.
+    The client can still force the web via `use_web` flag.
+    """
+    if not text:
+        return False
+    lower = text.lower()
+    # explicit user flag words
+    triggers = ['latest', 'recent', 'current', 'news', 'update', 'updates', 'version', 'versions', 'released', 'release', 'announced', 'trend', 'trending', 'today']
+    for t in triggers:
+        if t in lower:
+            return True
+    # common version/year patterns
+    import re
+    if re.search(r'20\d{2}', text):
+        return True
+    # technical queries about packages, install, or compatibility
+    tech_triggers = ['install', 'how to install', 'compatibl', 'compatibility', 'npm', 'pypi', 'github', 'stack overflow', 'stackoverflow']
+    for t in tech_triggers:
+        if t in lower:
+            return True
+    return False
+
 @app.post("/chat")
 def chat(msg: Message):
     # Retrieve relevant memories and include them in the prompt (simple RAG)
@@ -293,15 +414,26 @@ def chat(msg: Message):
         mem_text = "Relevant memories:\n" + "\n".join(mem_lines) + "\n\n"
 
     web_findings = ''
-    # Automatically use Wikipedia findings when internet is available and web search is requested
+    # Use web findings when the client requests it or heuristics indicate it's useful
     try:
-        if msg.use_web and is_internet_available():
-            q = (msg.web_query or msg.text)[:400]
-            snippets = wiki_search(q, max_results=3)
-            if snippets:
-                parts = ["Web findings (Wikipedia):"]
-                for s in snippets:
-                    parts.append(f"- Source: {s['url']}\n  Excerpt: {s['text'][:800]}")
+        use_web_flag = bool(msg.use_web) or should_use_web(msg.text)
+        if use_web_flag and is_internet_available():
+            q = (msg.web_query or msg.text)[:800]
+            snippets = wiki_search(q, max_results=2)
+            other = general_search(q, max_results=4)
+            combined = []
+            seen = set()
+            for s in (snippets or []) + (other or []):
+                url = s.get('url') or ''
+                if url in seen:
+                    continue
+                seen.add(url)
+                combined.append(s)
+
+            if combined:
+                parts = ["Web findings:"]
+                for s in combined:
+                    parts.append(f"- Source: {s.get('url')}\n  Excerpt: {s.get('text','')[:800]}")
                 web_findings = "\n" + "\n\n".join(parts) + "\n\n"
     except Exception:
         web_findings = ''
