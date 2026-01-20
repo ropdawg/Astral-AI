@@ -15,7 +15,7 @@ app = FastAPI(title="Astral Server")
 # Allow browser-based frontends to call this API (adjust origins as needed)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5500"],
+    allow_origins=["*"],  # Allow all for deployment
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,9 +33,10 @@ TOP_P = 0.9
 CPU_THREADS = min(4, multiprocessing.cpu_count())
 REPLY_MAX_TOKENS = 512
 
-# Load Groq API key
-with open(API_KEY_PATH, 'r') as f:
-    api_key = f.read().strip()
+# Load Groq API key from environment variable (for Render deployment)
+api_key = os.environ.get('GROQ_API_KEY')
+if not api_key:
+    raise ValueError("GROQ_API_KEY environment variable is required")
 
 client = Groq(api_key=api_key)
 MODEL_NAME = "llama-3.3-70b-versatile"
@@ -190,12 +191,12 @@ class MemoryItem(BaseModel):
     text: str
 
 
+# In-memory storage for memories (ephemeral on Render)
+_memories = []
+
+
 def load_memories() -> List[dict]:
-    try:
-        with open(MEMORY_PATH, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception:
-        return []
+    return _memories
 
 
 def append_memory(role: str, text: str):
@@ -204,13 +205,10 @@ def append_memory(role: str, text: str):
         'text': text,
         'ts': datetime.utcnow().isoformat()
     }
-    mems = load_memories()
-    mems.append(item)
-    try:
-        with open(MEMORY_PATH, 'w', encoding='utf-8') as f:
-            json.dump(mems, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
+    _memories.append(item)
+    # Keep only last 1000 memories to prevent memory bloat
+    if len(_memories) > 1000:
+        _memories.pop(0)
 
 
 def retrieve_relevant_memories(query: str, limit: int = 5):
@@ -417,7 +415,7 @@ def chat(msg: Message):
     # Use web findings when the client requests it or heuristics indicate it's useful
     try:
         use_web_flag = bool(msg.use_web) or should_use_web(msg.text)
-        if use_web_flag and is_internet_available():
+        if use_web_flag:  # Assume internet available on cloud platforms like Render
             q = (msg.web_query or msg.text)[:800]
             snippets = wiki_search(q, max_results=2)
             other = general_search(q, max_results=4)
@@ -435,7 +433,8 @@ def chat(msg: Message):
                 for s in combined:
                     parts.append(f"- Source: {s.get('url')}\n  Excerpt: {s.get('text','')[:800]}")
                 web_findings = "\n" + "\n\n".join(parts) + "\n\n"
-    except Exception:
+    except Exception as e:
+        print(f"Web search error: {e}")  # Log for debugging on Render
         web_findings = ''
 
     # Encourage the model to use web findings when present to produce a complete answer
@@ -492,3 +491,9 @@ def get_memory(query: Optional[str] = None, limit: int = 5):
 def post_memory(item: MemoryItem):
     append_memory(item.role, item.text)
     return {'ok': True}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
