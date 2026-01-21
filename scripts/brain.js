@@ -273,13 +273,8 @@ function escapeHtml(text = '') {
 }
 
 function scrollToBottom() {
-  // Use scrollIntoView for better mobile compatibility
-  const lastMessage = displayContainer.lastElementChild;
-  if (lastMessage) {
-    lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  } else {
-    displayContainer.scrollTop = displayContainer.scrollHeight;
-  }
+  // Use scrollTop for better mobile compatibility and reliability
+  displayContainer.scrollTop = displayContainer.scrollHeight;
 }
 
 /* =========================
@@ -609,7 +604,3 @@ updateSpeechButton();
 updateVoiceButton();
 updateSidebarState();
 initSpeechRecognition();
-
-
-
-
