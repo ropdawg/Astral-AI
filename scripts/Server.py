@@ -15,7 +15,7 @@ app = FastAPI(title="Astral Server")
 # Allow browser-based frontends to call this API (adjust origins as needed)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all for deployment
+    allow_origins=["https://ropdawg.github.io"],  # Allow all for deployment
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,10 +33,12 @@ TOP_P = 0.9
 CPU_THREADS = min(4, multiprocessing.cpu_count())
 REPLY_MAX_TOKENS = 512
 
-# Load Groq API key from environment variable (for Render deployment)
-api_key = os.environ.get('GROQ_API_KEY')
-if not api_key:
-    raise ValueError("GROQ_API_KEY environment variable is required")
+# Load Groq API key from file (for simplicity, avoiding env var issues)
+try:
+    with open(API_KEY_PATH, 'r') as f:
+        api_key = f.read().strip()
+except FileNotFoundError:
+    raise ValueError("my-groq-api.txt not found. Please create it with your Groq API key.")
 
 client = Groq(api_key=api_key)
 MODEL_NAME = "llama-3.3-70b-versatile"
