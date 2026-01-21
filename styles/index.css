@@ -228,6 +228,14 @@ main {
   margin-bottom: 60px;
 }
 
+/* Mobile adjustments for better scrolling */
+@media (max-width: 768px) {
+  .chat-display-container {
+    margin-bottom: 80px; /* Extra space for mobile keyboards/touch */
+    padding: 10px;
+  }
+}
+
 
 .chatlog {
   display: flex;
