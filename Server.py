@@ -252,7 +252,7 @@ def wiki_search(query: str, max_results: int = 3):
             'format': 'json',
             'srlimit': max_results,
         }
-        r = requests.get(api, params=params, timeout=6, headers={'User-Agent': 'Mozilla/5.0'})
+        r = requests.get(api, params=params, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
         data = r.json()
         for item in data.get('query', {}).get('search', []):
             pageid = item.get('pageid')
@@ -262,7 +262,7 @@ def wiki_search(query: str, max_results: int = 3):
             try:
                 # request a longer plain-text extract (approx up to exchars)
                 ex_params = {'action': 'query', 'prop': 'extracts', 'explaintext': 1, 'format': 'json', 'pageids': pageid, 'exchars': 2000}
-                er = requests.get(api, params=ex_params, timeout=6, headers={'User-Agent': 'Mozilla/5.0'})
+                er = requests.get(api, params=ex_params, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
                 ed = er.json()
                 pages = ed.get('query', {}).get('pages', {})
                 extract = pages.get(str(pageid), {}).get('extract', '')
@@ -292,7 +292,7 @@ def duckduckgo_search(query: str, max_results: int = 5):
     try:
         url = 'https://html.duckduckgo.com/html/'
         params = {'q': query}
-        r = requests.post(url, data=params, timeout=8, headers={'User-Agent': 'Mozilla/5.0'})
+        r = requests.post(url, data=params, timeout=12, headers={'User-Agent': 'Mozilla/5.0'})
         soup = BeautifulSoup(r.text, 'html.parser')
         # Try to find the more structured results first
         anchors = soup.find_all('a', attrs={'class': 'result__a'})
@@ -329,7 +329,7 @@ def bing_search(query: str, max_results: int = 5):
         endpoint = 'https://api.bing.microsoft.com/v7.0/search'
         headers = {'Ocp-Apim-Subscription-Key': key, 'User-Agent': 'Mozilla/5.0'}
         params = {'q': query, 'count': max_results}
-        r = requests.get(endpoint, headers=headers, params=params, timeout=8)
+        r = requests.get(endpoint, headers=headers, params=params, timeout=12)
         data = r.json()
         for item in data.get('webPages', {}).get('value', []):
             out.append({'url': item.get('url'), 'text': (item.get('snippet') or '')[:1600]})
@@ -413,9 +413,9 @@ def chat(msg: Message):
 
     web_findings = ''
     # Use web findings when the client requests it or heuristics indicate it's useful
-    try:
-        use_web_flag = bool(msg.use_web) or should_use_web(msg.text)
-        if use_web_flag:  # Assume internet available on cloud platforms like Render
+    use_web_flag = bool(msg.use_web) or should_use_web(msg.text)
+    if use_web_flag and is_internet_available(timeout=5):
+        try:
             q = (msg.web_query or msg.text)[:800]
             snippets = wiki_search(q, max_results=2)
             other = general_search(q, max_results=4)
@@ -433,8 +433,10 @@ def chat(msg: Message):
                 for s in combined:
                     parts.append(f"- Source: {s.get('url')}\n  Excerpt: {s.get('text','')[:800]}")
                 web_findings = "\n" + "\n\n".join(parts) + "\n\n"
-    except Exception as e:
-        print(f"Web search error: {e}")  # Log for debugging on Render
+        except Exception as e:
+            print(f"Web search error: {e}")  # Log for debugging on Render
+            web_findings = ''
+    else:
         web_findings = ''
 
     # Encourage the model to use web findings when present to produce a complete answer
