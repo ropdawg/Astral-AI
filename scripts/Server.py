@@ -15,7 +15,7 @@ app = FastAPI(title="Astral Server")
 # Allow browser-based frontends to call this API (adjust origins as needed)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ropdawg.github.io"],
+    allow_origins=["*"],  # Allow all for deployment
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,9 +33,10 @@ TOP_P = 0.9
 CPU_THREADS = min(4, multiprocessing.cpu_count())
 REPLY_MAX_TOKENS = 512
 
-# Load Groq API key
-with open(API_KEY_PATH, 'r') as f:
-    api_key = f.read().strip()
+# Load Groq API key from environment variable (for Render deployment)
+api_key = os.environ.get('GROQ_API_KEY')
+if not api_key:
+    raise ValueError("GROQ_API_KEY environment variable is required")
 
 client = Groq(api_key=api_key)
 MODEL_NAME = "llama-3.3-70b-versatile"
@@ -190,12 +191,12 @@ class MemoryItem(BaseModel):
     text: str
 
 
+# In-memory storage for memories (ephemeral on Render)
+_memories = []
+
+
 def load_memories() -> List[dict]:
-    try:
-        with open(MEMORY_PATH, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception:
-        return []
+    return _memories
 
 
 def append_memory(role: str, text: str):
@@ -204,13 +205,10 @@ def append_memory(role: str, text: str):
         'text': text,
         'ts': datetime.utcnow().isoformat()
     }
-    mems = load_memories()
-    mems.append(item)
-    try:
-        with open(MEMORY_PATH, 'w', encoding='utf-8') as f:
-            json.dump(mems, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
+    _memories.append(item)
+    # Keep only last 1000 memories to prevent memory bloat
+    if len(_memories) > 1000:
+        _memories.pop(0)
 
 
 def retrieve_relevant_memories(query: str, limit: int = 5):
@@ -246,6 +244,7 @@ def wiki_search(query: str, max_results: int = 3):
     """Search Wikipedia via the public API and return list of dicts with 'url' and 'text'."""
     out = []
     try:
+        print(f"Wikipedia search for: {query}")  # Debug log
         api = 'https://en.wikipedia.org/w/api.php'
         params = {
             'action': 'query',
@@ -254,8 +253,9 @@ def wiki_search(query: str, max_results: int = 3):
             'format': 'json',
             'srlimit': max_results,
         }
-        r = requests.get(api, params=params, timeout=6, headers={'User-Agent': 'Mozilla/5.0'})
+        r = requests.get(api, params=params, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
         data = r.json()
+        print(f"Wikipedia API response status: {r.status_code}")  # Debug log
         for item in data.get('query', {}).get('search', []):
             pageid = item.get('pageid')
             title = item.get('title')
@@ -264,11 +264,12 @@ def wiki_search(query: str, max_results: int = 3):
             try:
                 # request a longer plain-text extract (approx up to exchars)
                 ex_params = {'action': 'query', 'prop': 'extracts', 'explaintext': 1, 'format': 'json', 'pageids': pageid, 'exchars': 2000}
-                er = requests.get(api, params=ex_params, timeout=6, headers={'User-Agent': 'Mozilla/5.0'})
+                er = requests.get(api, params=ex_params, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
                 ed = er.json()
                 pages = ed.get('query', {}).get('pages', {})
                 extract = pages.get(str(pageid), {}).get('extract', '')
-            except Exception:
+            except Exception as e:
+                print(f"Wikipedia extract error for {pageid}: {e}")  # Debug log
                 extract = ''
 
             if not extract:
@@ -277,9 +278,136 @@ def wiki_search(query: str, max_results: int = 3):
 
             url = f'https://en.wikipedia.org/?curid={pageid}'
             out.append({'url': url, 'text': extract})
+    except Exception as e:
+        print(f"Wikipedia search error: {e}")  # Debug log
+    return out
+
+
+# Simple in-memory cache for recent web queries
+_web_cache = {}
+
+
+def duckduckgo_search(query: str, max_results: int = 5):
+    """Perform a lightweight DuckDuckGo HTML search (no API key required).
+    Returns list of {'url':..., 'text':...}
+    """
+    out = []
+    try:
+        url = 'https://html.duckduckgo.com/html/'
+        params = {'q': query}
+        r = requests.post(url, data=params, timeout=12, headers={'User-Agent': 'Mozilla/5.0'})
+        soup = BeautifulSoup(r.text, 'html.parser')
+        # Try to find the more structured results first
+        anchors = soup.find_all('a', attrs={'class': 'result__a'})
+        if not anchors:
+            anchors = soup.find_all('a')
+
+        for a in anchors:
+            href = a.get('href')
+            text = a.get_text().strip()
+            if not href or not href.startswith('http'):
+                continue
+            # try to find a nearby snippet
+            snippet = ''
+            parent = a.find_parent()
+            if parent:
+                s = parent.find('a', {'class': 'result__snippet'}) or parent.find('div', {'class': 'result__snippet'})
+                if s:
+                    snippet = s.get_text().strip()
+            out.append({'url': href, 'text': (snippet or text)[:1600]})
+            if len(out) >= max_results:
+                break
     except Exception:
         pass
     return out
+
+
+def bing_search(query: str, max_results: int = 5):
+    """Use Bing Web Search API if `BING_API_KEY` env var is set. Returns same shape as other search fns."""
+    out = []
+    key = os.environ.get('BING_API_KEY')
+    if not key:
+        return out
+    try:
+        endpoint = 'https://api.bing.microsoft.com/v7.0/search'
+        headers = {'Ocp-Apim-Subscription-Key': key, 'User-Agent': 'Mozilla/5.0'}
+        params = {'q': query, 'count': max_results}
+        r = requests.get(endpoint, headers=headers, params=params, timeout=12)
+        data = r.json()
+        for item in data.get('webPages', {}).get('value', []):
+            out.append({'url': item.get('url'), 'text': (item.get('snippet') or '')[:1600]})
+    except Exception:
+        pass
+    return out
+
+
+def general_search(query: str, max_results: int = 5):
+    """Wrapper that tries Bing (if key present) then DuckDuckGo as fallback.
+    Uses a short in-memory cache to avoid repeated requests.
+    """
+    key = query.strip().lower()
+    cache_key = f"gs:{key}:{max_results}"
+    if cache_key in _web_cache:
+        return _web_cache[cache_key]
+
+    results = []
+    # Prefer Bing when available
+    if os.environ.get('BING_API_KEY'):
+        print("Trying Bing search")  # Debug log
+        results = bing_search(query, max_results=max_results)
+        print(f"Bing results: {len(results)}")  # Debug log
+
+    if not results:
+        print("Trying DuckDuckGo search")  # Debug log
+        results = duckduckgo_search(query, max_results=max_results)
+        print(f"DuckDuckGo results: {len(results)}")  # Debug log
+
+    # Always include wiki results for authoritative references
+    try:
+        print("Adding Wikipedia results")  # Debug log
+        w = wiki_search(query, max_results=2)
+        print(f"Wikipedia results: {len(w)}")  # Debug log
+        # merge unique urls
+        seen = {r['url'] for r in results}
+        for r in w:
+            if r['url'] not in seen:
+                results.append(r)
+                seen.add(r['url'])
+                if len(results) >= max_results:
+                    break
+    except Exception as e:
+        print(f"Wikipedia search error: {e}")  # Debug log
+
+    _web_cache[cache_key] = results
+    # keep cache small
+    if len(_web_cache) > 128:
+        # pop an arbitrary item
+        _web_cache.pop(next(iter(_web_cache)))
+    return results
+
+
+def should_use_web(text: str) -> bool:
+    """Heuristic to decide whether a query likely needs up-to-date web info.
+    The client can still force the web via `use_web` flag.
+    """
+    if not text:
+        return False
+    lower = text.lower()
+    # explicit user flag words
+    triggers = ['latest', 'recent', 'current', 'news', 'update', 'updates', 'version', 'versions', 'released', 'release', 'announced', 'trend', 'trending', 'today']
+    for t in triggers:
+        if t in lower:
+            return True
+    # common version/year patterns
+    import re
+    if re.search(r'20\d{2}', text):
+        return True
+    # technical queries about packages, install, or compatibility
+    tech_triggers = ['install', 'how to install', 'compatibl', 'compatibility', 'npm', 'pypi', 'github', 'stack overflow', 'stackoverflow']
+    for t in tech_triggers:
+        if t in lower:
+            return True
+    return False
 
 @app.post("/chat")
 def chat(msg: Message):
@@ -293,17 +421,32 @@ def chat(msg: Message):
         mem_text = "Relevant memories:\n" + "\n".join(mem_lines) + "\n\n"
 
     web_findings = ''
-    # Automatically use Wikipedia findings when internet is available and web search is requested
+    # Always attempt web search for every message to stay up-to-date, but use the info only when needed
+    use_web_flag = bool(msg.use_web) or should_use_web(msg.text)
     try:
-        if msg.use_web and is_internet_available():
-            q = (msg.web_query or msg.text)[:400]
-            snippets = wiki_search(q, max_results=3)
-            if snippets:
-                parts = ["Web findings (Wikipedia):"]
-                for s in snippets:
-                    parts.append(f"- Source: {s['url']}\n  Excerpt: {s['text'][:800]}")
-                web_findings = "\n" + "\n\n".join(parts) + "\n\n"
-    except Exception:
+        print(f"Performing web search for: {msg.text}")  # Debug log
+        q = (msg.web_query or msg.text)[:800]
+        snippets = wiki_search(q, max_results=2)
+        print(f"Wikipedia results: {len(snippets)}")  # Debug log
+        other = general_search(q, max_results=4)
+        print(f"General search results: {len(other)}")  # Debug log
+        combined = []
+        seen = set()
+        for s in (snippets or []) + (other or []):
+            url = s.get('url') or ''
+            if url in seen:
+                continue
+            seen.add(url)
+            combined.append(s)
+
+        if combined and use_web_flag:
+            parts = ["Web findings:"]
+            for s in combined:
+                parts.append(f"- Source: {s.get('url')}\n  Excerpt: {s.get('text','')[:800]}")
+            web_findings = "\n" + "\n\n".join(parts) + "\n\n"
+            print("Web findings added to prompt")  # Debug log
+    except Exception as e:
+        print(f"Web search error: {e}")  # Log for debugging on Render
         web_findings = ''
 
     # Encourage the model to use web findings when present to produce a complete answer
@@ -360,3 +503,9 @@ def get_memory(query: Optional[str] = None, limit: int = 5):
 def post_memory(item: MemoryItem):
     append_memory(item.role, item.text)
     return {'ok': True}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
