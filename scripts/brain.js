@@ -338,7 +338,7 @@ async function handleSend() {
   } catch (e) {}
 
   try {
-    const resp = await fetch(`https://astral-ai-2-g1iq.onrender.com/chat`, {
+    const resp = await fetch(`https://astral-ai-1-mxrl.onrender.com/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -554,6 +554,7 @@ renderHtmlResult();
 
 updateSpeechButton();
 initSpeechRecognition();
+
 
 
 
