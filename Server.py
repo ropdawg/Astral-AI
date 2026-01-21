@@ -15,7 +15,7 @@ app = FastAPI(title="Astral Server")
 # Allow browser-based frontends to call this API (adjust origins as needed)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all for deployment
+    allow_origins=["https://ropdawg.github.io"],  # Allow all for deployment
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
