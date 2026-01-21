@@ -1,4 +1,4 @@
-let voiceEnabled = true;
+let voiceEnabled = false;
 
 const voiceToggleBtns = document.querySelectorAll('.voice-toggle');
 const speechToggleBtns = document.querySelectorAll('.speech-toggle');
@@ -8,12 +8,13 @@ const inputEl = document.querySelector('.js-chat-response');
 const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
 const mobileDropdownMenu = document.querySelector('.mobile-dropdown-menu');
 const newChatBtn = document.querySelector('.new-chat-btn');
+const mainElement = document.querySelector('main');
+const chatSidebar = document.querySelector('.chat-sidebar');
 const chatHistoryList = document.querySelector('.js-chat-history-list');
 const sidebarToggle = document.querySelector('.sidebar-toggle');
-const chatSidebar = document.querySelector('.chat-sidebar');
 let isSending = false;
 let currentController = null;
-let sidebarOpen = true;
+let sidebarOpen = false;
 
 // Chat history management
 let chatHistory = []; // Array of {id, title, messages}
@@ -22,8 +23,7 @@ let currentChatId = null;
 /* =========================
    SIDEBAR TOGGLE
 ========================= */
-sidebarToggle?.addEventListener('click', () => {
-  sidebarOpen = !sidebarOpen;
+function updateSidebarState() {
   if (chatSidebar) {
     if (sidebarOpen) {
       chatSidebar.classList.remove('collapsed');
@@ -31,6 +31,11 @@ sidebarToggle?.addEventListener('click', () => {
       chatSidebar.classList.add('collapsed');
     }
   }
+}
+
+sidebarToggle?.addEventListener('click', () => {
+  sidebarOpen = !sidebarOpen;
+  updateSidebarState();
 });
 
 /* =========================
@@ -153,8 +158,7 @@ function getCurrentChat() {
 ========================= */
 newChatBtn?.addEventListener('click', () => {
   createNewChat();
-  // Close mobile dropdown menu
-  mobileDropdownMenu?.classList.remove('active');
+  // Don't close mobile dropdown menu when clicking new chat
 });
 
 mobileMenuToggle?.addEventListener('click', (e) => {
@@ -162,10 +166,40 @@ mobileMenuToggle?.addEventListener('click', (e) => {
   mobileDropdownMenu?.classList.toggle('active');
 });
 
+// Close sidebar when clicking on main content
+mainElement?.addEventListener('pointerdown', () => {
+  if (sidebarOpen) {
+    sidebarOpen = false;
+    updateSidebarState();
+  }
+});
+
+mainElement?.addEventListener('click', () => {
+  if (sidebarOpen) {
+    sidebarOpen = false;
+    updateSidebarState();
+  }
+});
+
+// Close sidebar when clicking on the header (outside sidebar area)
+document.querySelector('.head')?.addEventListener('pointerdown', (e) => {
+  if (sidebarOpen && !sidebarToggle?.contains(e.target)) {
+    sidebarOpen = false;
+    updateSidebarState();
+  }
+});
+
+document.querySelector('.head')?.addEventListener('click', (e) => {
+  if (sidebarOpen && !sidebarToggle?.contains(e.target)) {
+    sidebarOpen = false;
+    updateSidebarState();
+  }
+});
+
 // Close dropdown when clicking outside
-document.addEventListener('click', (e) => {
-  // Don't close if clicking the menu toggle or inside the dropdown
-  if (mobileMenuToggle?.contains(e.target) || mobileDropdownMenu?.contains(e.target)) {
+document.addEventListener('pointerdown', (e) => {
+  // Don't close if clicking the menu toggle, inside the dropdown, or the new chat button
+  if (mobileMenuToggle?.contains(e.target) || mobileDropdownMenu?.contains(e.target) || newChatBtn?.contains(e.target)) {
     return;
   }
   mobileDropdownMenu?.classList.remove('active');
@@ -174,24 +208,30 @@ document.addEventListener('click', (e) => {
 /* =========================
    VOICE TOGGLE
 ========================= */
+function updateVoiceButton() {
+  voiceToggleBtns.forEach(voiceToggleBtn => {
+    if (!voiceToggleBtn) return;
+    voiceToggleBtn.setAttribute('aria-pressed', String(voiceEnabled));
+    const label = voiceToggleBtn.querySelector('.btn-label');
+    if (label) {
+      // Check if this is a desktop or mobile button
+      if (label.textContent.includes(':')) {
+        // Desktop button format
+        label.textContent = voiceEnabled ? 'Voice : ON' : 'Voice : OFF';
+      } else {
+        // Mobile dropdown format - just toggle indicator
+        label.textContent = voiceEnabled ? '✓ Voice' : 'Voice';
+      }
+    }
+    // reflect active state with a class so CSS can style it
+    if (voiceEnabled) voiceToggleBtn.classList.add('on'); else voiceToggleBtn.classList.remove('on');
+  });
+}
+
 voiceToggleBtns.forEach(voiceToggleBtn => {
   voiceToggleBtn?.addEventListener('click', () => {
     voiceEnabled = !voiceEnabled;
-    // Update all voice toggle buttons
-    voiceToggleBtns.forEach(btn => {
-      btn.setAttribute('aria-pressed', String(voiceEnabled));
-      const label = btn.querySelector('.btn-label');
-      if (label) {
-        // Check if this is a desktop or mobile button
-        if (label.textContent.includes(':')) {
-          // Desktop button format
-          label.textContent = voiceEnabled ? 'Voice : ON' : 'Voice : OFF';
-        } else {
-          // Mobile dropdown format - just toggle indicator
-          label.textContent = voiceEnabled ? '✓ Voice' : 'Voice';
-        }
-      }
-    });
+    updateVoiceButton();
   });
 });
 
@@ -233,7 +273,13 @@ function escapeHtml(text = '') {
 }
 
 function scrollToBottom() {
-  displayContainer.scrollTop = displayContainer.scrollHeight;
+  // Use scrollIntoView for better mobile compatibility
+  const lastMessage = displayContainer.lastElementChild;
+  if (lastMessage) {
+    lastMessage.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  } else {
+    displayContainer.scrollTop = displayContainer.scrollHeight;
+  }
 }
 
 /* =========================
@@ -273,7 +319,7 @@ function renderHtmlResult() {
 /* =========================
    TYPING EFFECT
 ========================= */
-function typeText(element, text, speed = 25) {
+function typeText(element, text, speed = 25, onComplete = null) {
   element.textContent = '';
   let i = 0;
 
@@ -281,8 +327,15 @@ function typeText(element, text, speed = 25) {
     if (i < text.length) {
       element.textContent += text.charAt(i);
       i++;
-      scrollToBottom();
+      // Scroll every 5 characters for better performance on mobile
+      if (i % 5 === 0 || i === text.length) {
+        scrollToBottom();
+      }
       setTimeout(type, speed);
+    } else {
+      // Typing complete, ensure final scroll and call callback
+      scrollToBottom();
+      if (onComplete) onComplete();
     }
   }
   type();
@@ -324,7 +377,7 @@ async function handleSend() {
   renderHtmlResult();
 
   // start sending: create an AbortController so user can cancel
-  const SERVER_URL = window.SERVER_URL || 'http://127.0.0.1:8001';
+  const SERVER_URL = window.SERVER_URL || 'http://127.0.0.1:8000';
   const controller = new AbortController();
   currentController = controller;
   isSending = true;
@@ -338,7 +391,7 @@ async function handleSend() {
   } catch (e) {}
 
   try {
-    const resp = await fetch(`https://astral-ai-1-mxrl.onrender.com/chat`, {
+    const resp = await fetch(`https://astral-ai-rnc7.onrnder.com/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -553,9 +606,6 @@ loadChatsUI();
 renderHtmlResult();
 
 updateSpeechButton();
+updateVoiceButton();
+updateSidebarState();
 initSpeechRecognition();
-
-
-
-
-
