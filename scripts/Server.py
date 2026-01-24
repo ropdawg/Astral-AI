@@ -31,7 +31,7 @@ BATCH_SIZE = 128
 TEMPERATURE = 0.7
 TOP_P = 0.9
 CPU_THREADS = min(4, multiprocessing.cpu_count())
-REPLY_MAX_TOKENS=512
+REPLY_MAX_TOKENS=1024
 
 client = Groq(api_key=API_KEY)
 MODEL_NAME = "llama-3.3-70b-versatile"
