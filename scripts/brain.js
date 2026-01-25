@@ -592,11 +592,6 @@ function speak(text) {
 
   speechSynthesis.speak(utter);
 }
-window.addEventListener("load", () => {
-  if (document.documentElement.requestFullscreen) {
-    document.documentElement.requestFullscreen().catch(() => {});
-  }
-});
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js")
     .then(() => console.log("Service Worker registered"))
@@ -613,6 +608,7 @@ updateSpeechButton();
 updateVoiceButton();
 updateSidebarState();
 initSpeechRecognition();
+
 
 
 
