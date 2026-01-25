@@ -2,10 +2,11 @@
   "name": "Astral AI",
   "short_name": "Astral",
   "description": "Astral AI – fast AI chat app",
-  "start_url": "/",
+  "start_url": "/Astral-AI/",
+  "scope": "/Astral-AI/"
   "display": "standalone",
-  "background_color": "#0b0f1a",
-  "theme_color": "#6a5cff",
+  "background_color": "#00FFFF",
+"theme_color": "#00FFFF"
   "orientation": "portrait",
   "icons": [
     {
