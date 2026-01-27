@@ -248,7 +248,7 @@ main {
   align-self: flex-start;
   background: linear-gradient(135deg, #1d2744, #141b33);
   color: #eaf3ff;
-  max-width: 70%;
+  max-width: 0%;
   padding: 10px 14px;
   border-radius: 16px 16px 16px 4px;
   box-shadow: 0 0 6px rgba(0, 170, 255, 0.4);
@@ -259,11 +259,11 @@ main {
   align-self: flex-end;
   background: linear-gradient(135deg, #0a152c, #07101f);
   color: #8fd6ff;
-  max-width: 70%;
+  max-width: 100%;
   padding: 10px 14px;
-  border-radius: 16px 16px 4px 16px;
-  border: 1px solid rgba(0, 220, 255, 0.5);
-  box-shadow: 0 0 6px rgba(0, 220, 255, 0.6);
+  border-radius: none;
+  border: none;
+  box-shadow: none;
 }
 
 /* ================= TEXT ================= */
@@ -567,3 +567,4 @@ main {
     height: 18px;
   }
 }
+
