@@ -256,14 +256,14 @@ main {
 
 /* ================= AI (RIGHT) ================= */
 .ai-response {
-  align-self: flex-end;
-  background: linear-gradient(135deg, #0a152c, #07101f);
-  color: #8fd6ff;
-  max-width: 100%;
-  padding: 10px 14px;
-  border-radius: none;
-  border: none;
-  box-shadow: none;
+align-self: flex-end;
+background: linear-gradient(135deg, #0a152c, #07101f);
+color: #8fd6ff;
+max-width: 70%;
+padding: 10px 14px;
+border-radius: 16px 16px 4px 16px;
+border: 1px solid rgba(0, 220, 255, 0.5);
+box-shadow: 0 0 6px rgba(0, 220, 255, 0.6);
 }
 
 /* ================= TEXT ================= */
@@ -567,4 +567,5 @@ main {
     height: 18px;
   }
 }
+
 
