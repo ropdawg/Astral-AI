@@ -34,7 +34,7 @@ CPU_THREADS = min(4, multiprocessing.cpu_count())
 REPLY_MAX_TOKENS=2048
 
 client = Groq(api_key=API_KEY)
-MODEL_NAME = "openai/gpt-oss-120b"
+MODEL_NAME = "llama-3.3-70b-versatile"
 
 SYSTEM_PROMPT = """
 You are Astral — an AI assistant created by Ukanwoko Brian specialized in:
