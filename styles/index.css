@@ -248,7 +248,7 @@ main {
   align-self: flex-start;
   background: linear-gradient(135deg, #1d2744, #141b33);
   color: #eaf3ff;
-  max-width: 0%;
+  max-width: 30%;
   padding: 10px 14px;
   border-radius: 16px 16px 16px 4px;
   box-shadow: 0 0 6px rgba(0, 170, 255, 0.4);
@@ -567,5 +567,6 @@ box-shadow: 0 0 6px rgba(0, 220, 255, 0.6);
     height: 18px;
   }
 }
+
 
 
