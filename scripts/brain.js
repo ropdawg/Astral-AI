@@ -592,11 +592,13 @@ function speak(text) {
 
   speechSynthesis.speak(utter);
 }
+/*
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js")
     .then(() => console.log("Service Worker registered"))
     .catch(err => console.error("Service Worker failed", err));
 }
+*/
 /* =========================
    INIT
 ========================= */
@@ -608,6 +610,7 @@ updateSpeechButton();
 updateVoiceButton();
 updateSidebarState();
 initSpeechRecognition();
+
 
 
 
